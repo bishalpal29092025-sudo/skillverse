@@ -1,11 +1,20 @@
-import Message from "@/models/Message";
+import Message, {
+  IMessage,
+} from "@/models/Message";
 
-export async function sendMessage(data: {
+type SendMessageData = {
   conversation: unknown;
   sender: unknown;
   content: string;
-}) {
+};
+
+
+export async function sendMessage(data: SendMessageData) {
   return Message.create(data);
+}
+
+export async function findMessageById(id: string){
+  return Message.findById(id);
 }
 
 export async function getMessages(
@@ -18,6 +27,10 @@ export async function getMessages(
     .sort({
       createdAt: 1,
     });
+}
+
+export async function saveMessage(message: IMessage){
+  return message.save();
 }
 
 export async function markMessageAsRead(
