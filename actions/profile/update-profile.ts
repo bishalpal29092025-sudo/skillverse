@@ -5,8 +5,8 @@ import { getServerSession } from "next-auth";
 import connectDB from "@/lib/db";
 import { authOptions } from "@/lib/auth";
 
-import User from "@/models/User";
 import { profileSchema } from "@/validators/profile.validator";
+import { updateProfileService } from "@/services/profile.service";
 
 type ProfileData = {
   headline: string;
@@ -17,26 +17,23 @@ type ProfileData = {
 };
 
 export async function updateProfile(
-  data: ProfileData
+  data: ProfileData,
 ) {
   try {
-    console.log("STEP 1: Action called");
-
-    const validated = profileSchema.safeParse(data);
+    const validated =
+      profileSchema.safeParse(data);
 
     if (!validated.success) {
-      console.log("VALIDATION FAILED");
-
       return {
         success: false,
-        errors: validated.error.flatten(),
+        message: "Validation failed",
+        errors:
+          validated.error.flatten(),
       };
     }
 
-    console.log("STEP 2: Validation passed");
-    console.log(validated.data);
-
-    const session = await getServerSession(authOptions);
+    const session =
+      await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return {
@@ -47,39 +44,23 @@ export async function updateProfile(
 
     await connectDB();
 
-    console.log("STEP 3: Database connected");
+    return await updateProfileService({
+      email: session.user.email,
 
-    const updatedUser = await User.findOneAndUpdate(
-      {
-        email: session.user.email,
-      },
-      {
-        $set: {
-          headline: validated.data.headline,
-          bio: validated.data.bio,
-          location: validated.data.location,
-          skillsOffered: validated.data.skillsOffered,
-          skillsWanted: validated.data.skillsWanted,
-        },
-      },
-      {
-        returnDocument: "after",
-      }
-    );
+      headline: validated.data.headline,
+      bio: validated.data.bio,
+      location: validated.data.location,
 
-    console.log("UPDATED USER");
-    console.log(
-      JSON.stringify(updatedUser, null, 2)
-    );
+      skillsOffered:
+        validated.data.skillsOffered,
 
-    return {
-      success: true,
-      message: "Profile updated successfully",
-    };
+      skillsWanted:
+        validated.data.skillsWanted,
+    });
   } catch (error) {
     console.error(
-      "PROFILE UPDATE ERROR",
-      error
+      "PROFILE UPDATE ERROR:",
+      error,
     );
 
     return {

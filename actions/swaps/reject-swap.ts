@@ -2,19 +2,18 @@
 
 import { getServerSession } from "next-auth";
 
-import { authOptions } from "@/lib/auth";
 import connectDB from "@/lib/db";
+import { authOptions } from "@/lib/auth";
 
-import User from "@/models/User";
-import SwapRequest from "@/models/SwapRequest";
+import { findUserByEmail } from "@/repositories/user.repository";
+import { rejectSwapService } from "@/services/swap.service";
 
 export async function rejectSwap(
-  swapId: string
+  swapId: string,
 ) {
   try {
-    const session = await getServerSession(
-      authOptions
-    );
+    const session =
+      await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return {
@@ -25,9 +24,10 @@ export async function rejectSwap(
 
     await connectDB();
 
-    const currentUser = await User.findOne({
-      email: session.user.email,
-    });
+    const currentUser =
+      await findUserByEmail(
+        session.user.email,
+      );
 
     if (!currentUser) {
       return {
@@ -36,35 +36,16 @@ export async function rejectSwap(
       };
     }
 
-    const swap =
-      await SwapRequest.findOne({
-        _id: swapId,
-        receiver: currentUser._id,
-      });
-
-    if (!swap) {
-      return {
-        success: false,
-        message:
-          "Swap request not found",
-      };
-    }
-
-    swap.status = "rejected";
-
-    await swap.save();
-
-    return {
-      success: true,
-      message: "Swap rejected",
-    };
+    return await rejectSwapService(
+      swapId,
+      currentUser._id,
+    );
   } catch (error) {
     console.error(error);
 
     return {
       success: false,
-      message:
-        "Failed to reject swap",
+      message: "Failed to reject swap",
     };
   }
 }

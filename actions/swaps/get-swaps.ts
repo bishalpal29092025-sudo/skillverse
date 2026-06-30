@@ -2,21 +2,23 @@
 
 import { getServerSession } from "next-auth";
 
-import { authOptions } from "@/lib/auth";
 import connectDB from "@/lib/db";
+import { authOptions } from "@/lib/auth";
 
-import User from "@/models/User";
-import SwapRequest from "@/models/SwapRequest";
+import { findUserByEmail } from "@/repositories/user.repository";
+
+import {
+  getIncomingSwapsService,
+  getOutgoingSwapsService,
+} from "@/services/swap.service";
 
 export async function getSwaps() {
   try {
-    const session = await getServerSession(
-      authOptions
-    );
+    const session =
+      await getServerSession(authOptions);
 
     if (!session?.user?.email) {
       return {
-        success: false,
         incoming: [],
         outgoing: [],
       };
@@ -24,58 +26,33 @@ export async function getSwaps() {
 
     await connectDB();
 
-    const currentUser = await User.findOne({
-      email: session.user.email,
-    });
+    const user =
+      await findUserByEmail(
+        session.user.email,
+      );
 
-    if (!currentUser) {
+    if (!user) {
       return {
-        success: false,
         incoming: [],
         outgoing: [],
       };
     }
 
-    const incoming = await SwapRequest
-      .find({
-        receiver: currentUser._id,
-      })
-      .populate(
-        "sender",
-        "name email headline"
-      )
-      .sort({
-        createdAt: -1,
-      })
-      .lean();
-
-    const outgoing = await SwapRequest
-      .find({
-        sender: currentUser._id,
-      })
-      .populate(
-        "receiver",
-        "name email headline"
-      )
-      .sort({
-        createdAt: -1,
-      })
-      .lean();
-
     return {
-      success: true,
-      incoming: JSON.parse(
-        JSON.stringify(incoming)
-      ),
-      outgoing: JSON.parse(
-        JSON.stringify(outgoing)
-      ),
+      incoming:
+        await getIncomingSwapsService(
+          user._id,
+        ),
+
+      outgoing:
+        await getOutgoingSwapsService(
+          user._id,
+        ),
     };
   } catch (error) {
     console.error(error);
 
     return {
-      success: false,
       incoming: [],
       outgoing: [],
     };
